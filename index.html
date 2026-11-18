@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Vault</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+:root{--bg:#07090f;--panel:#0e1320;--line:#1e2a3d;--fg:#d6deeb;--dim:#7b8aa3;--green:#5af78e;--amber:#f3c969;--red:#ff6b6b;--blue:#6fb3ff;--sel:#172036;--purple:#c792ea}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:15px;line-height:1.5}
+body{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:0 24px;background-image:radial-gradient(ellipse at top,#0f1830 0,#07090f 60%)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px)}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);color:var(--dim);font-size:13px;flex-wrap:wrap}
+header b{color:var(--fg);font-size:16px}header b .cur{color:var(--amber);animation:blink 1s steps(2) infinite}@keyframes blink{to{opacity:0}}
+nav button{font:inherit;font-size:13px;background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer;margin-left:4px}nav button.on{color:var(--green);border-color:var(--green)}
+main{display:grid;grid-template-columns:250px 1fr 460px;gap:12px;margin-top:10px}
+@media (max-width:1150px){main{grid-template-columns:220px 1fr}.right{grid-column:1/3}}
+@media (max-width:720px){main{grid-template-columns:1fr}.right{grid-column:1}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;min-width:0}
+.eyebrow{color:var(--dim);font-size:12px;margin-bottom:6px}.eyebrow::before{content:"// "}
+h2{font-size:1.1rem;margin:0 0 8px}
+.rooms{list-style:none;margin:0;padding:0}.rooms li{padding:6px 8px;border-radius:4px;cursor:pointer;color:var(--dim);display:flex;gap:8px;align-items:center}
+.rooms li:hover{background:var(--sel)}.rooms li.cur{background:var(--sel);color:var(--fg)}.rooms li .n{min-width:40px;color:var(--amber)}.rooms li.done .n{color:var(--green)}.rooms li.locked{opacity:.45}
+.rooms li.done .n::after{content:" ✓"}.rooms .sec{color:var(--purple);font-size:12px;margin:8px 0 2px;padding-left:8px}
+.story{background:#0f1726;border-left:3px solid var(--blue);padding:8px 12px;margin:8px 0;font-size:14px}
+.story .src{color:var(--dim);font-size:12px;display:block;margin-top:4px}
+.task{background:#1a1a10;border-left:3px solid var(--amber);padding:8px 12px;margin:8px 0;font-size:14px}
+.learn{border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin:6px 0;font-size:14px}.learn b{color:var(--blue)}.learn pre{margin:6px 0 0;background:#070a10;padding:6px 8px;border-radius:3px;font-size:13px;white-space:pre-wrap}
+details summary{cursor:pointer;color:var(--dim);font-size:13px;margin:6px 0}
+textarea{width:100%;min-height:280px;font:inherit;font-size:15px;background:#070a10;color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:10px;resize:vertical;tab-size:4;white-space:pre;overflow:auto;line-height:1.45}
+textarea:focus{outline:1px solid var(--blue)}
+button{font:inherit;font-weight:700;background:#0f1a2b;color:var(--fg);border:1px solid var(--blue);border-radius:4px;padding:8px 14px;cursor:pointer;margin:6px 6px 0 0}button:hover{background:#15233a}
+button.run{border-color:var(--green);color:var(--green)}button.ghost{border-color:var(--line);color:var(--dim);font-weight:400}
+.out{background:#070a10;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin-top:8px;min-height:3.2em;white-space:pre-wrap;word-break:break-word;font-size:14px;max-height:220px;overflow:auto}
+.out .err{color:var(--red)}.out .ok{color:var(--green)}.out .hint{color:var(--amber)}.out .in{color:var(--blue)}
+.checks{list-style:none;padding:0;margin:8px 0 0;font-size:13px}.checks li{padding:3px 0;color:var(--dim)}.checks li.pass{color:var(--green)}.checks li.fail{color:var(--red)}
+.lab{font-size:12px;color:var(--dim);margin:4px 0 2px}.hidden{display:none!important}
+footer{color:var(--dim);font-size:12px;text-align:center;margin-top:20px}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:12px}
+.code{font-size:1.05rem;word-break:break-all;background:#070a10;border:1px dashed var(--green);color:var(--green);padding:8px;border-radius:4px;margin:8px 0}
+/* vault map */
+.map{position:relative;height:170px;margin-top:8px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:linear-gradient(#05070d,#0b1120)}
+.map svg{width:100%;height:100%;display:block}
+.map .door{fill:#121a2a;stroke:#2a3650;stroke-width:1.2;cursor:pointer;transition:all .5s}.map .door.done{fill:#123a22;stroke:var(--green);filter:drop-shadow(0 0 6px rgba(90,247,142,.6))}.map .door.cur{stroke:var(--amber);stroke-width:2}
+.map .lbl{fill:var(--dim);font-size:9px;text-anchor:middle;font-family:inherit}.map .done+.lbl{fill:var(--green)}
+.map .hall{fill:none;stroke:#1a2436;stroke-width:6}.map .hall.lit{stroke:#1f4a30}
+.map .vault{fill:#161020;stroke:var(--purple);stroke-width:1.5}.map .vault.done{fill:#2a1a40;filter:drop-shadow(0 0 10px rgba(199,146,234,.7))}
+.map .title{fill:var(--dim);font-size:11px;font-family:inherit}
+/* LMC visual */
+.lmc{display:grid;grid-template-columns:1fr;gap:8px}
+.regs{display:flex;gap:6px;flex-wrap:wrap}.regs div{background:#070a10;border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:13px;min-width:70px}.regs b{color:var(--amber);display:block;font-size:11px;font-weight:400}
+.mem{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}.mem div{background:#070a10;border:1px solid #141b2a;border-radius:3px;font-size:10px;padding:2px 3px;min-height:30px;color:var(--dim);overflow:hidden;white-space:nowrap}
+.mem div i{display:block;font-style:normal;color:#39506e;font-size:9px}.mem div.pc{border-color:var(--amber);color:var(--amber)}.mem div.hit{border-color:var(--blue);color:var(--blue)}.mem div.has{color:var(--fg)}
+.io{display:flex;gap:8px}.io div{flex:1;background:#070a10;border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:13px;min-height:2.6em}
+.ref{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:13px}.ref b{color:var(--amber);font-weight:400}
+.cls{font-size:13px;white-space:pre-wrap;background:#070a10;padding:8px;border-radius:4px;border:1px solid var(--line)}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:0 6px;font-size:11px;color:var(--dim);margin-left:6px}
+table.b{border-collapse:collapse;font-size:13px;width:100%}table.b td,table.b th{border:1px solid var(--line);padding:4px 6px;text-align:left}table.b th{color:var(--dim);font-weight:400}
+</style>
+</head>
+<body>
+<header>
+  <span><b>the-vault<span class="cur">_</span></b> <span>eleven doors · LMC, addressing modes, classes</span></span>
+  <nav><button id="nb-rooms" class="on" onclick="view('rooms')">rooms</button><button id="nb-ref" onclick="view('ref')">cheat sheet</button><button id="nb-me" onclick="view('me')">my key</button></nav>
+</header>
+<div class="map"><svg id="map" viewBox="0 0 900 170" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+<main id="rooms-view">
+  <aside class="card"><div class="eyebrow">doors</div><ul class="rooms" id="rlist"></ul><div class="lab" id="progress"></div></aside>
+  <section class="card">
+    <div class="eyebrow" id="r-eyebrow">room</div>
+    <h2 id="r-title"></h2>
+    <div class="story" id="r-story"></div>
+    <details id="r-details"><summary>what you need to know</summary><div id="r-learn"></div></details>
+    <div class="task" id="r-task"></div>
+    <textarea id="ed" spellcheck="false"></textarea>
+    <div><button class="run" onclick="runCode()">▶ Run</button><button onclick="checkRoom()">✓ Check</button><button class="ghost" onclick="hint()">hint</button><button class="ghost" onclick="resetCode()">reset</button> <span class="lab" style="display:inline"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs</span></div>
+    <div class="out" id="out"></div>
+    <ul class="checks" id="checks"></ul>
+    <div class="lab" id="matchline">Run, then Check.</div>
+  </section>
+  <section class="card right" id="rightpane">
+    <div id="lmcpane" class="lmc">
+      <div class="lab">registers</div>
+      <div class="regs"><div><b>PC</b><span id="r-pc">0</span></div><div><b>ACC</b><span id="r-acc">0</span></div><div><b>X (index)</b><span id="r-x">0</span></div><div><b>steps</b><span id="r-steps">0</span></div></div>
+      <div class="lab">memory (100 cells)</div>
+      <div class="mem" id="mem"></div>
+      <div class="io"><div><span class="lab">input queue</span><br><span id="r-in"></span></div><div><span class="lab">output</span><br><span id="r-out"></span></div></div>
+      <div><button class="ghost" onclick="stepOnce()">step</button><button class="ghost" onclick="animate()">watch it run</button> <span class="lab" style="display:inline">speed <input id="spd" type="range" min="1" max="30" value="8" style="vertical-align:middle;width:90px"></span></div>
+    </div>
+    <div id="oopane" class="hidden">
+      <div class="lab">objects in memory</div>
+      <div id="objs" class="cls">(run your code)</div>
+      <div class="lab" style="margin-top:8px">the harness that checks your class</div>
+      <div id="harness" class="cls"></div>
+    </div>
+  </section>
+</main>
+
+<main id="ref-view" class="hidden" style="grid-template-columns:1fr 1fr">
+  <section class="card"><div class="eyebrow">cheat sheet</div><h2>LMC and addressing modes</h2>
+    <div class="ref">
+      <b>INP / OUT</b><span>input to ACC / output ACC</span>
+      <b>LDA n / STA n</b><span>load from / store to address n (direct)</span>
+      <b>ADD n / SUB n</b><span>ACC = ACC + / - contents of address n</span>
+      <b>BRA L / BRZ L / BRP L</b><span>jump always / if ACC = 0 / if ACC ≥ 0</span>
+      <b>HLT</b><span>stop</span>
+      <b>X  DAT 5</b><span>a labelled data cell holding 5</span>
+      <b>LDA #7</b><span>immediate: the 7 is the value</span>
+      <b>LDA 7</b><span>direct: address 7 holds the value</span>
+      <b>LDA (7)</b><span>indirect: address 7 holds the address of the value</span>
+      <b>LDA 7,X</b><span>indexed: address 7 + X holds the value</span>
+      <b>LDX #2 / LDX n</b><span>set the index register X</span>
+      <b>INX</b><span>X = X + 1</span>
+      <b>ADD #1, SUB #1, STA (p), ADD 7,X ...</b><span>every mode works with ADD, SUB, LDA, STA</span>
+    </div></section>
+  <section class="card"><div class="eyebrow">cheat sheet</div><h2>OCR Exam Reference Language</h2>
+    <div class="ref">
+      <b>x = 5   name = "Kit"</b><span>variables</span>
+      <b>print(a, b)</b><span>output, spaces between</span>
+      <b>if x &gt; 5 then ... elseif ... else ... endif</b><span>selection</span>
+      <b>for i = 1 to 5 ... next i</b><span>count-controlled loop</span>
+      <b>while x &lt; 10 ... endwhile</b><span>condition-controlled loop</span>
+      <b>function f(a) ... return a*2 ... endfunction</b><span>returns a value</span>
+      <b>procedure p(a) ... endprocedure</b><span>returns nothing</span>
+      <b>class Dog</b><span>starts a class; ends with endclass</span>
+      <b>private name</b><span>attribute only the class's methods can use</span>
+      <b>public procedure new(n)  name = n  endprocedure</b><span>the constructor</span>
+      <b>public function getName()  return name  endfunction</b><span>a getter</span>
+      <b>class Puppy inherits Dog</b><span>a subclass</span>
+      <b>super.new(n)</b><span>runs the parent's constructor</span>
+      <b>d = new Dog("Rex")   d.getName()</b><span>make an object, call a method</span>
+      <b>AND OR NOT  MOD DIV  ==  !=</b><span>operators</span>
+    </div></section>
+</main>
+
+<main id="me-view" class="hidden" style="grid-template-columns:1fr"><section class="card"><div class="eyebrow">my key</div><h2>The Vault</h2><div id="me-body"></div></section></main>
+<main id="board-view" class="hidden" style="grid-template-columns:1fr"><section class="card"><div class="eyebrow">teacher board</div><h2>Decode keys</h2><p class="lab">Paste one key per line.</p><textarea id="keys" style="min-height:120px"></textarea><div><button onclick="decode()">decode</button></div><div id="board"></div></section></main>
+<footer>Sapere Aude</footer>
+
+<script>
+// ============================================================ LMC with addressing modes
+const OPS = {ADD:1,SUB:1,STA:1,LDA:1,BRA:1,BRZ:1,BRP:1,INP:0,OUT:0,HLT:0,DAT:1,LDX:1,INX:0};
+function assemble(src){
+  const lines = src.split("\n"); const items=[]; const labels={};
+  lines.forEach((raw,li)=>{ let l=raw.split("//")[0].trim(); if(!l) return; const t=l.split(/\s+/);
+    let label=null, op, arg=null;
+    if(!OPS.hasOwnProperty(t[0].toUpperCase())){ label=t.shift(); }
+    if(!t.length) throw new Error(`line ${li+1}: label '${label}' needs an instruction`);
+    op=t.shift().toUpperCase(); if(!OPS.hasOwnProperty(op)) throw new Error(`line ${li+1}: unknown instruction '${op}'`);
+    arg=t.join("")||null;
+    if(label){ if(labels[label]!==undefined) throw new Error(`line ${li+1}: label '${label}' used twice`); labels[label]=items.length; }
+    items.push({op,arg,line:li+1});
+  });
+  if(items.length>100) throw new Error("program too long for 100 cells");
+  const mem = Array.from({length:100},()=>({op:"DAT",val:0,src:""}));
+  items.forEach((it,i)=>{
+    let mode="direct", v=0, a=it.arg;
+    if(a!==null){
+      let m;
+      if(it.op==="DAT"){ v=parseInt(a,10); if(isNaN(v)) throw new Error(`line ${it.line}: DAT needs a number`); mem[i]={op:"DAT",val:v,src:`DAT ${v}`}; return; }
+      if((m=a.match(/^#(-?\w+)$/))){ mode="immediate"; a=m[1]; }
+      else if((m=a.match(/^\((\w+)\)$/))){ mode="indirect"; a=m[1]; }
+      else if((m=a.match(/^(\w+),X$/i))){ mode="indexed"; a=m[1]; }
+      if(/^-?\d+$/.test(a)) v=parseInt(a,10); else { if(labels[a]===undefined) throw new Error(`line ${it.line}: unknown label '${a}'`); v=labels[a]; }
+      if(mode!=="direct" && ["BRA","BRZ","BRP"].includes(it.op)) throw new Error(`line ${it.line}: branches take a plain label`);
+      if(mode==="indexed" && it.op==="LDX") throw new Error(`line ${it.line}: LDX cannot be indexed`);
+    } else if(OPS[it.op]===1 && it.op!=="DAT") throw new Error(`line ${it.line}: ${it.op} needs an operand`);
+    else if(it.op==="DAT"){ mem[i]={op:"DAT",val:0,src:"DAT"}; return; }
+    mem[i]={op:it.op,mode,val:v,src:it.arg?`${it.op} ${it.arg}`:it.op,line:it.line};
+  });
+  return {mem,labels};
+}
+function newVM(prog, inputs){ return {mem:prog.mem.map(c=>({...c})), pc:0, acc:0, x:0, inputs:[...inputs], outputs:[], steps:0, halted:false, hit:null, err:null}; }
+function cellValue(c){ return c.op==="DAT"? c.val : (c.val); }
+function effective(vm,c){ // returns the value to use for ADD/SUB/LDA and the address for STA
+  if(c.mode==="immediate") return {val:c.val, addr:null};
+  if(c.mode==="direct") return {val:cellValue(vm.mem[c.val]), addr:c.val};
+  if(c.mode==="indirect"){ const p=cellValue(vm.mem[c.val]); if(p<0||p>99) throw new Error(`indirect address ${p} is outside memory`); return {val:cellValue(vm.mem[p]), addr:p}; }
+  if(c.mode==="indexed"){ const a=c.val+vm.x; if(a<0||a>99) throw new Error(`indexed address ${a} is outside memory`); return {val:cellValue(vm.mem[a]), addr:a}; }
+}
+function step(vm){
+  if(vm.halted) return;
+  if(vm.steps++>20000){ vm.err="runaway: over 20,000 steps (is there a loop with no exit?)"; vm.halted=true; return; }
+  const c=vm.mem[vm.pc]; vm.hit=null; const here=vm.pc; vm.pc=(vm.pc+1)%100;
+  const wrap=v=>{ v=((v%1000)+1000)%1000; return v; };
+  try{
+  switch(c.op){
+    case "DAT": vm.err=`ran into data at cell ${here} (missing HLT?)`; vm.halted=true; break;
+    case "HLT": vm.halted=true; break;
+    case "INP": if(!vm.inputs.length){ vm.err="INP but no input left"; vm.halted=true; break;} vm.acc=vm.inputs.shift(); break;
+    case "OUT": vm.outputs.push(vm.acc); break;
+    case "LDA": { const e=effective(vm,c); vm.acc=e.val; vm.hit=e.addr; break; }
+    case "ADD": { const e=effective(vm,c); vm.acc=vm.acc+e.val; vm.hit=e.addr; break; }
+    case "SUB": { const e=effective(vm,c); vm.acc=vm.acc-e.val; vm.hit=e.addr; break; }
+    case "STA": { if(c.mode==="immediate") throw new Error("STA cannot be immediate"); const e=effective(vm,c); vm.mem[e.addr]={op:"DAT",val:vm.acc,src:`DAT ${vm.acc}`}; vm.hit=e.addr; break; }
+    case "BRA": vm.pc=c.val; break;
+    case "BRZ": if(vm.acc===0) vm.pc=c.val; break;
+    case "BRP": if(vm.acc>=0) vm.pc=c.val; break;
+    case "LDX": { if(c.mode==="immediate") vm.x=c.val; else { const e=effective(vm,c); vm.x=e.val; vm.hit=e.addr; } break; }
+    case "INX": vm.x++; break;
+  }} catch(e){ vm.err=e.message; vm.halted=true; }
+}
+function runLMC(src, inputs){ const prog=assemble(src); const vm=newVM(prog,inputs); while(!vm.halted) step(vm); return vm; }
+
+// ============================================================ ERL (OCR Exam Reference Language) interpreter
+class ERLError extends Error{ constructor(m,line){ super(line?`line ${line}: ${m}`:m); } }
+function tokenize(s,line){
+  const toks=[]; let i=0;
+  while(i<s.length){ const ch=s[i];
+    if(/\s/.test(ch)){i++;continue;}
+    if(ch==='"'||ch==="'"){ let j=i+1,v=""; while(j<s.length&&s[j]!==ch){v+=s[j++];} if(j>=s.length) throw new ERLError("unclosed string",line); toks.push({t:"str",v}); i=j+1; continue; }
+    let m;
+    if((m=s.slice(i).match(/^\d+\.\d+|^\d+/))){ toks.push({t:"num",v:parseFloat(m[0])}); i+=m[0].length; continue; }
+    if((m=s.slice(i).match(/^[A-Za-z_]\w*/))){ const w=m[0]; const kw=w.toUpperCase();
+      if(["AND","OR","NOT","MOD","DIV"].includes(kw)) toks.push({t:"op",v:kw}); else if(w==="True"||w==="False") toks.push({t:"bool",v:w==="True"}); else toks.push({t:"id",v:w}); i+=w.length; continue; }
+    if((m=s.slice(i).match(/^(==|!=|<=|>=|[-+*\/^<>=(),.\[\]])/))){ toks.push({t:"op",v:m[0]}); i+=m[0].length; continue; }
+    throw new ERLError(`unexpected character '${ch}'`,line);
+  }
+  return toks;
+}
+function parseExpr(toks,line){ let p=0; const peek=()=>toks[p], next=()=>toks[p++];
+  const expect=(v)=>{ const t=next(); if(!t||t.v!==v) throw new ERLError(`expected '${v}'`,line); };
+  function primary(){ const t=next(); if(!t) throw new ERLError("unexpected end of expression",line);
+    if(t.t==="num"||t.t==="str"||t.t==="bool") return {k:"lit",v:t.v};
+    if(t.t==="op"&&t.v==="("){ const e=expr(); expect(")"); return e; }
+    if(t.t==="op"&&t.v==="-"){ return {k:"neg",a:primary()}; }
+    if(t.t==="op"&&t.v==="NOT"){ return {k:"not",a:primary()}; }
+    if(t.t==="op"&&t.v==="["){ const items=[]; if(peek()&&peek().v!=="]"){ items.push(expr()); while(peek()&&peek().v===","){next();items.push(expr());} } expect("]"); return {k:"list",items}; }
+    if(t.t==="id"){
+      if(t.v==="new"){ const c=next(); if(!c||c.t!=="id") throw new ERLError("new needs a class name",line); expect("("); const args=[]; if(peek()&&peek().v!==")"){ args.push(expr()); while(peek()&&peek().v===","){next();args.push(expr());} } expect(")"); return postfix({k:"new",cls:c.v,args}); }
+      if(t.v==="super"){ expect("."); const m=next(); expect("("); const args=[]; if(peek()&&peek().v!==")"){ args.push(expr()); while(peek()&&peek().v===","){next();args.push(expr());} } expect(")"); return {k:"super",m:m.v,args}; }
+      if(peek()&&peek().v==="("){ next(); const args=[]; if(peek()&&peek().v!==")"){ args.push(expr()); while(peek()&&peek().v===","){next();args.push(expr());} } expect(")"); return postfix({k:"call",name:t.v,args}); }
+      return postfix({k:"var",name:t.v});
+    }
+    throw new ERLError(`unexpected '${t.v}'`,line);
+  }
+  function postfix(node){ while(peek()&&(peek().v==="."||peek().v==="[")){ if(next().v==="."){ const m=next(); if(!m||m.t!=="id") throw new ERLError("expected a name after '.'",line);
+      if(peek()&&peek().v==="("){ next(); const args=[]; if(peek()&&peek().v!==")"){ args.push(expr()); while(peek()&&peek().v===","){next();args.push(expr());} } expect(")"); node={k:"mcall",obj:node,m:m.v,args}; }
+      else node={k:"attr",obj:node,name:m.v}; } else { const idx=expr(); expect("]"); node={k:"index",obj:node,idx}; } } return node; }
+  const prec={OR:1,AND:2,"==":3,"!=":3,"<":4,">":4,"<=":4,">=":4,"+":5,"-":5,"*":6,"/":6,MOD:6,DIV:6,"^":7};
+  function expr(min=0){ let left=primary(); while(peek()&&peek().t==="op"&&prec[peek().v]!==undefined&&prec[peek().v]>min){ const op=next().v; const right=expr(prec[op]); left={k:"bin",op,a:left,b:right}; } return left; }
+  const e=expr(); if(p<toks.length) throw new ERLError(`unexpected '${toks[p].v}'`,line); return e;
+}
+function parseProgram(src){
+  const lines=src.split("\n"); const classes={}; const funcs={};
+  function block(i, enders){ const stmts=[]; while(i<lines.length){ const raw=lines[i]; const l=raw.split("//")[0].trim(); const ln=i+1; if(!l){i++;continue;}
+      const low=l.toLowerCase(); const first=low.split(/[\s(]/)[0];
+      if(enders.includes(first)) return {stmts,i,ender:first,text:l};
+      let m;
+      if((m=l.match(/^class\s+(\w+)(?:\s+inherits\s+(\w+))?$/i))){ const cls={name:m[1],parent:m[2]||null,attrs:{},methods:{},line:ln}; i++;
+        while(i<lines.length){ const cl=lines[i].split("//")[0].trim(); const cln=i+1; if(!cl){i++;continue;} if(/^endclass$/i.test(cl)) break;
+          let mm;
+          if((mm=cl.match(/^(private|public)\s+(\w+)$/i))){ cls.attrs[mm[2]]=mm[1].toLowerCase(); i++; continue; }
+          if((mm=cl.match(/^(private|public)?\s*(function|procedure)\s+(\w+)\s*\(([^)]*)\)$/i))){ const r=block(i+1,[mm[2].toLowerCase()==="function"?"endfunction":"endprocedure"]); if(!r.ender) throw new ERLError(`method ${mm[3]} has no end`,cln);
+            cls.methods[mm[3]]={name:mm[3],access:(mm[1]||"public").toLowerCase(),kind:mm[2].toLowerCase(),params:mm[4].split(",").map(s=>s.trim()).filter(Boolean),body:r.stmts,line:cln}; i=r.i+1; continue; }
+          throw new ERLError(`inside a class, expected 'private name', 'public procedure new(...)' or a method, got '${cl}'`,cln); }
+        if(i>=lines.length) throw new ERLError(`class ${cls.name} has no endclass`,ln); i++; classes[cls.name]=cls; continue; }
+      if((m=l.match(/^(function|procedure)\s+(\w+)\s*\(([^)]*)\)$/i))){ const r=block(i+1,[m[1].toLowerCase()==="function"?"endfunction":"endprocedure"]); if(!r.ender) throw new ERLError(`${m[2]} has no end`,ln); funcs[m[2]]={name:m[2],kind:m[1].toLowerCase(),params:m[3].split(",").map(s=>s.trim()).filter(Boolean),body:r.stmts,line:ln}; i=r.i+1; continue; }
+      if((m=l.match(/^if\s+(.+?)\s+then$/i))){ const branches=[]; let cond=m[1]; let j=i+1; let elseBody=null;
+        while(true){ const r=block(j,["elseif","else","endif"]); if(!r.ender) throw new ERLError("if has no endif",ln); branches.push({cond:parseExpr(tokenize(cond,ln),ln),body:r.stmts}); j=r.i;
+          if(r.ender==="elseif"){ const mm=r.text.match(/^elseif\s+(.+?)\s+then$/i); if(!mm) throw new ERLError("elseif needs 'then'",j+1); cond=mm[1]; j++; continue; }
+          if(r.ender==="else"){ const r2=block(j+1,["endif"]); if(!r2.ender) throw new ERLError("else has no endif",j+1); elseBody=r2.stmts; j=r2.i; }
+          break; }
+        stmts.push({k:"if",branches,elseBody,line:ln}); i=j+1; continue; }
+      if(/^if\b/i.test(l)) throw new ERLError("if needs 'then' at the end of the line",ln);
+      if((m=l.match(/^for\s+(\w+)\s*=\s*(.+?)\s+to\s+(.+?)(?:\s+step\s+(.+?))?$/i))){ const r=block(i+1,["next"]); if(!r.ender) throw new ERLError("for has no next",ln);
+        stmts.push({k:"for",v:m[1],from:parseExpr(tokenize(m[2],ln),ln),to:parseExpr(tokenize(m[3],ln),ln),stepE:m[4]?parseExpr(tokenize(m[4],ln),ln):null,body:r.stmts,line:ln}); i=r.i+1; continue; }
+      if((m=l.match(/^while\s+(.+)$/i))){ const r=block(i+1,["endwhile"]); if(!r.ender) throw new ERLError("while has no endwhile",ln); stmts.push({k:"while",cond:parseExpr(tokenize(m[1],ln),ln),body:r.stmts,line:ln}); i=r.i+1; continue; }
+      if((m=l.match(/^return\b\s*(.*)$/i))){ stmts.push({k:"return",e:m[1]?parseExpr(tokenize(m[1],ln),ln):null,line:ln}); i++; continue; }
+      if((m=l.match(/^print\s*\((.*)\)$/i))){ const toks=tokenize(m[1],ln); const args=[]; let cur=[],depth=0; toks.forEach(t=>{ if(t.t==="op"&&(t.v==="("||t.v==="["))depth++; if(t.t==="op"&&(t.v===")"||t.v==="]"))depth--; if(t.t==="op"&&t.v===","&&depth===0){args.push(cur);cur=[];} else cur.push(t); }); if(cur.length) args.push(cur); stmts.push({k:"print",args:args.map(a=>parseExpr(a,ln)),line:ln}); i++; continue; }
+      if((m=l.match(/^([\w.]+)(?:\[(.+?)\])?\s*=\s*(.+)$/)) && !/^==/.test(l.slice(m[1].length).trim())){ const target=m[1].split("."); stmts.push({k:"assign",target,idx:m[2]?parseExpr(tokenize(m[2],ln),ln):null,e:parseExpr(tokenize(m[3],ln),ln),line:ln}); i++; continue; }
+      stmts.push({k:"expr",e:parseExpr(tokenize(l,ln),ln),line:ln}); i++; }
+    return {stmts,i,ender:null}; }
+  const r=block(0,[]); return {main:r.stmts,classes,funcs};
+}
+function runERL(src, harness){
+  const prog=parseProgram(src+(harness?"\n"+harness:"")); const out=[]; const objs=[];
+  class Ret{ constructor(v){this.v=v;} }
+  const globals={};
+  const instOf=(cls,name)=>{ for(let c=cls;c;c=prog.classes[c.parent]) if(c.name===name) return true; return false; };
+  function allAttrs(cls){ const a={}; const chain=[]; for(let c=cls;c;c=c.parent?prog.classes[c.parent]:null){ if(!c) break; chain.unshift(c); } chain.forEach(c=>Object.assign(a,c.attrs)); return a; }
+  function findMethod(cls,name){ for(let c=cls;c;c=c.parent?prog.classes[c.parent]:null){ if(c.methods[name]) return {m:c.methods[name],owner:c}; if(!c.parent) break; } return null; }
+  function fmt(v){ if(v===true) return "True"; if(v===false) return "False"; if(v&&v.__obj) return `<${v.cls.name} object>`; if(Array.isArray(v)) return "["+v.map(fmt).join(", ")+"]"; if(typeof v==="number"&&!Number.isInteger(v)) return String(Math.round(v*1e6)/1e6); return String(v); }
+  function ev(e,frame){
+    switch(e.k){
+      case "lit": return e.v;
+      case "list": return e.items.map(x=>ev(x,frame));
+      case "neg": return -ev(e.a,frame);
+      case "not": return !ev(e.a,frame);
+      case "var": { const n=e.name; if(n in frame.locals) return frame.locals[n]; if(frame.self && (n in frame.self.attrs)) return frame.self.attrs[n]; if(n in globals) return globals[n]; throw new ERLError(`'${n}' has no value yet`,frame.line); }
+      case "bin": { const a=ev(e.a,frame); if(e.op==="AND") return !!a && !!ev(e.b,frame); if(e.op==="OR") return !!a || !!ev(e.b,frame); const b=ev(e.b,frame);
+        switch(e.op){ case "+": if(typeof a==="string"||typeof b==="string") return fmt(a)+fmt(b); return a+b; case "-": return a-b; case "*": return a*b; case "/": if(b===0) throw new ERLError("division by zero",frame.line); return a/b; case "MOD": return a%b; case "DIV": return Math.floor(a/b); case "^": return Math.pow(a,b);
+          case "==": return a===b; case "!=": return a!==b; case "<": return a<b; case ">": return a>b; case "<=": return a<=b; case ">=": return a>=b; } }
+      case "index": { const o=ev(e.obj,frame); const i=ev(e.idx,frame); if(typeof o==="string") return o[i]; return o[i]; }
+      case "attr": { const o=ev(e.obj,frame); if(!o||!o.__obj) throw new ERLError(`'.${e.name}' used on something that is not an object`,frame.line);
+        if(!(e.name in o.attrs)) throw new ERLError(`${o.cls.name} has no attribute '${e.name}'`,frame.line);
+        const acc=allAttrs(o.cls)[e.name]; if(acc==="private" && !(frame.self===o)) throw new ERLError(`'${e.name}' is private: use a method of ${o.cls.name} to reach it`,frame.line); return o.attrs[e.name]; }
+      case "call": { const args=e.args.map(a=>ev(a,frame));
+        if(e.name==="str") return fmt(args[0]); if(e.name==="int") return parseInt(args[0],10); if(e.name==="float") return parseFloat(args[0]); if(e.name==="len") return args[0].length; if(e.name==="input") throw new ERLError("input() is not available in the Vault: use the values the harness gives",frame.line);
+        if(frame.self){ const fm=findMethod(frame.self.cls,e.name); if(fm) return callMethod(frame.self,fm,args,frame.line); }
+        const f=prog.funcs[e.name]; if(!f) throw new ERLError(`unknown function '${e.name}'`,frame.line); return callFunc(f,args,null,frame.line); }
+      case "mcall": { const o=ev(e.obj,frame); if(!o||!o.__obj) throw new ERLError(`'.${e.m}()' used on something that is not an object`,frame.line); const fm=findMethod(o.cls,e.m); if(!fm) throw new ERLError(`${o.cls.name} has no method '${e.m}'`,frame.line);
+        if(fm.m.access==="private" && frame.self!==o) throw new ERLError(`method '${e.m}' is private`,frame.line); return callMethod(o,fm,e.args.map(a=>ev(a,frame)),frame.line); }
+      case "new": { const cls=prog.classes[e.cls]; if(!cls) throw new ERLError(`unknown class '${e.cls}'`,frame.line); const o={__obj:true,cls,attrs:{}}; Object.keys(allAttrs(cls)).forEach(k=>o.attrs[k]=null); objs.push(o);
+        const fm=findMethod(cls,"new"); const args=e.args.map(a=>ev(a,frame)); if(fm) callMethod(o,fm,args,frame.line); else if(args.length) throw new ERLError(`${cls.name} has no constructor new() but was given arguments`,frame.line); return o; }
+      case "super": { if(!frame.self||!frame.owner) throw new ERLError("super is only allowed inside a class",frame.line); const parent=frame.owner.parent?prog.classes[frame.owner.parent]:null; if(!parent) throw new ERLError(`${frame.owner.name} has no parent class`,frame.line);
+        const fm=findMethod(parent,e.m); if(!fm) throw new ERLError(`parent has no method '${e.m}'`,frame.line); return callMethod(frame.self,fm,e.args.map(a=>ev(a,frame)),frame.line); }
+    }
+  }
+  function callFunc(f,args,self,line,owner){ if(args.length!==f.params.length) throw new ERLError(`${f.name} expects ${f.params.length} argument(s), got ${args.length}`,line); const frame={locals:{},self,owner,line}; f.params.forEach((p,i)=>frame.locals[p]=args[i]);
+    try{ exec(f.body,frame); }catch(r){ if(r instanceof Ret){ if(f.kind==="procedure"&&r.v!==undefined&&r.v!==null) throw new ERLError(`procedure ${f.name} cannot return a value (make it a function)`,line); return r.v; } throw r; }
+    if(f.kind==="function") throw new ERLError(`function ${f.name} finished without return`,line); return null; }
+  function callMethod(o,fm,args,line){ return callFunc(fm.m,args,o,line,fm.owner); }
+  function exec(stmts,frame){ for(const s of stmts){ frame.line=s.line;
+    switch(s.k){
+      case "print": out.push(s.args.map(a=>fmt(ev(a,frame))).join(" ")); break;
+      case "assign": { const v=ev(s.e,frame); if(s.target.length===1){ const n=s.target[0];
+          if(s.idx){ const arr=ev({k:"var",name:n},frame); arr[ev(s.idx,frame)]=v; break; }
+          if(frame.self && (n in frame.self.attrs) && !(n in frame.locals)) frame.self.attrs[n]=v; else if(frame.self||frame.isFunc) frame.locals[n]=v; else globals[n]=v; }
+        else { const o=ev({k:"var",name:s.target[0]},frame); if(!o||!o.__obj) throw new ERLError(`'${s.target[0]}' is not an object`,s.line); const n=s.target[1];
+          if(!(n in o.attrs)) throw new ERLError(`${o.cls.name} has no attribute '${n}'`,s.line); const acc=allAttrs(o.cls)[n]; if(acc==="private"&&frame.self!==o) throw new ERLError(`'${n}' is private: use a set method of ${o.cls.name}`,s.line); o.attrs[n]=v; } break; }
+      case "if": { let done=false; for(const b of s.branches){ if(ev(b.cond,frame)){ exec(b.body,frame); done=true; break; } } if(!done&&s.elseBody) exec(s.elseBody,frame); break; }
+      case "for": { const a=ev(s.from,frame), b=ev(s.to,frame), st=s.stepE?ev(s.stepE,frame):1; let n=0; for(let i=a; st>0? i<=b : i>=b; i+=st){ if(++n>100000) throw new ERLError("loop ran 100,000 times",s.line); frame.locals[s.v]=i; exec(s.body,frame); } break; }
+      case "while": { let n=0; while(ev(s.cond,frame)){ if(++n>100000) throw new ERLError("while loop ran 100,000 times (no exit?)",s.line); exec(s.body,frame); } break; }
+      case "return": throw new Ret(s.e?ev(s.e,frame):null);
+      case "expr": ev(s.e,frame); break;
+    } } }
+  exec(prog.main,{locals:{},self:null,line:0,isFunc:false});
+  return {out,objs,classes:prog.classes};
+}
+
+// ============================================================ rooms
+const ROOMS = [
+ {id:"voyager", kind:"lmc", title:"Voyager 1", sub:"LMC warm-up", door:"Door 1",
+  story:"November 2023. Voyager 1, 24 billion kilometres away, starts sending gibberish. One memory chip on its 1977 computer has died. NASA cannot replace it; they can only send new code, 22 hours each way. In April 2024 they moved the broken routine to a working part of memory, in pieces, and the probe spoke again.",
+  src:"NASA / JPL, April 2024",
+  learn:[["Three registers you drive","ACC holds the number being worked on. PC holds the address of the next instruction. X is the index register (later rooms).",""],["The shape of a program","Instructions first, then HLT, then the DAT cells for data. Labels name a cell.","      INP\n      STA A\n      ...\n      HLT\nA     DAT"]],
+  starter:"// Door 1: add two numbers\n      INP\n      STA A\n      INP\n      ADD A\n      OUT\n      HLT\nA     DAT\n",
+  task:"The probe sends two readings. Write a program that inputs two numbers and outputs their sum, then outputs the first number again (NASA wants an echo to prove the chip works). Inputs 3 and 4 must output 7 then 3.",
+  hints:["The first number is saved in A; after the OUT, LDA A and OUT again.","Four instructions after the first OUT: LDA A, OUT, HLT.","Check the inputs are used in order: INP, STA A, INP, ADD A, OUT, LDA A, OUT, HLT."],
+  tests:[{inputs:[3,4],expect:[7,3]},{inputs:[10,25],expect:[35,10]},{inputs:[0,9],expect:[9,0]}], need:[]},
+ {id:"crowdstrike", kind:"lmc", title:"CrowdStrike, 19 July 2024", sub:"branching: BRZ", door:"Door 2",
+  story:"A security update went out to 8.5 million Windows machines at once. It read a field that was not there: a zero where an address should be. Every one of them crashed to a blue screen. Airlines, hospitals and banks stopped for a day. The fix was a check the code never made: is this value zero?",
+  src:"Microsoft and CrowdStrike post-incident reports, July 2024",
+  learn:[["BRZ: branch if zero","BRZ L jumps to label L only when ACC is 0. Otherwise the next instruction runs.","      LDA V\n      BRZ BAD\n      ...normal path\nBAD   ...crash path"],["BRA: branch always","After the normal path, BRA END skips over the other path.",""]],
+  starter:"// Door 2: the check that was missing\n      INP\n      BRZ BAD\n// value is fine: output 1\n\n\nBAD   LDA ZERO\n      OUT\n      HLT\nZERO  DAT 0\nONE   DAT 1\n",
+  task:"Input one value. If it is zero, output 0 (the update must be rejected). If it is anything else, output 1 (safe to install). Input 0 outputs 0; input 57 outputs 1.",
+  hints:["On the normal path: LDA ONE, OUT, then HLT (or BRA to the end).","Do not let the normal path fall through into BAD: put HLT or BRA END before the BAD label.","INP, BRZ BAD, LDA ONE, OUT, HLT, BAD LDA ZERO, OUT, HLT."],
+  tests:[{inputs:[0],expect:[0]},{inputs:[57],expect:[1]},{inputs:[1],expect:[1]}], need:[{re:/\bBRZ\b/i,msg:"Use BRZ to test for zero"}]},
+ {id:"jlr", kind:"lmc", title:"Jaguar Land Rover, September 2025", sub:"a counting loop", door:"Door 3",
+  story:"A cyber attack halted every JLR factory in Britain for over a month: 1,000 cars a day not built, suppliers laid off, the government guaranteeing a loan to keep the supply chain alive. Restart was a countdown: systems brought back one at a time, each checked before the next.",
+  src:"JLR statements and UK government loan guarantee, September to October 2025",
+  learn:[["A loop in LMC","Load the counter, test it, do the work, subtract one, store it, branch back.","LOOP  LDA N\n      BRZ END\n      OUT\n      SUB ONE\n      STA N\n      BRA LOOP\nEND   HLT"],["Why BRZ at the top","Testing before the work means an input of 0 outputs nothing, which is right.",""]],
+  starter:"// Door 3: the restart countdown\n      INP\n      STA N\nLOOP  LDA N\n      BRZ END\n      OUT\n\n\n      BRA LOOP\nEND   HLT\nN     DAT\nONE   DAT 1\n",
+  task:"Input a number n and output n, n-1, ... down to 1, then stop. Input 3 outputs 3, 2, 1. Input 0 outputs nothing.",
+  hints:["Between OUT and BRA LOOP: subtract one and store it back in N.","SUB ONE then STA N.","The loop must change N each time or it never ends (the simulator stops you at 20,000 steps)."],
+  tests:[{inputs:[3],expect:[3,2,1]},{inputs:[1],expect:[1]},{inputs:[0],expect:[]},{inputs:[5],expect:[5,4,3,2,1]}], need:[{re:/\bSUB\b/i,msg:"Subtract one each time round"}]},
+ {id:"immediate", kind:"lmc", title:"Minecraft redstone", sub:"immediate addressing: #", door:"Door 4",
+  story:"A redstone computer inside Minecraft, built from 30,000 blocks, runs an instruction set a lot like this one. Its builders ran out of memory cells for constants and added immediate addressing: put the number inside the instruction itself. One cell saved per constant, and no trip to memory.",
+  src:"community redstone CPUs (e.g. the CHUNGUS and Quartz processors), 2021 to 2025",
+  learn:[["Immediate: the operand is the value","LDA #5 puts the number 5 in ACC. ADD #1 adds one. No memory cell is read.","      LDA #5\n      ADD #1\n      OUT   // 6"],["Direct: the operand is an address","LDA 5 reads whatever is in cell 5. That is what plain LMC always does.",""]],
+  starter:"// Door 4: no DAT cells allowed\n      INP\n\n\n      OUT\n      HLT\n",
+  task:"Input a number, multiply it by 3 and add 10. The program may not contain any DAT line, so the 10 must be immediate (#10). You may store the input in any spare cell by number, for example STA 90, and read it back with ADD 90. Input 4 outputs 22.",
+  hints:["STA 90 stores x in cell 90 without a DAT line. Then ADD 90 twice, then ADD #10.","INP, STA 90, ADD 90, ADD 90, ADD #10, OUT, HLT.","Cell 90 is empty memory; storing there is allowed."],
+  tests:[{inputs:[4],expect:[22]},{inputs:[0],expect:[10]},{inputs:[7],expect:[31]}], need:[{re:/#/,msg:"Use immediate addressing (#) somewhere"},{re:/^(?![\s\S]*\bDAT\b)/i,msg:"No DAT lines allowed"}]},
+ {id:"indexed", kind:"lmc", title:"M&S, Easter 2025", sub:"indexed addressing: ,X", door:"Door 5",
+  story:"Marks and Spencer's online orders stopped for six weeks after attackers talked their way past a help desk. One of the recovery jobs: re-total thousands of baskets from backup, each a list of prices stored one after another in memory. One instruction, stepping through a list, is what indexed addressing is for.",
+  src:"M&S statements to the London Stock Exchange, April to July 2025",
+  learn:[["Indexed: operand + X","ADD 80,X adds the contents of cell 80 + X. With X = 0, 1, 2 the same instruction reads cells 80, 81, 82.","      LDX #0\nLOOP  ... ADD 80,X\n      INX\n      ..."],["LDX and INX","LDX #0 sets the index register. INX adds one to it. Count the items with an ordinary counter cell.",""]],
+  starter:"// Door 5: total a basket of 3 prices\n// prices are in cells 80, 81, 82\n      LDX #0\n      LDA #0\n      STA TOTAL\n\n\n\n\n      LDA TOTAL\n      OUT\n      HLT\nTOTAL DAT 0\nCOUNT DAT 3\nONE   DAT 1\n",
+  task:"Three prices are placed in cells 80, 81 and 82 before your program runs. Output their total using indexed addressing (,X) inside a loop that runs three times. Prices 5, 7, 9 must output 21.",
+  hints:["Loop body: LDA TOTAL, ADD 80,X, STA TOTAL, INX, then take one off COUNT and BRZ out.","LOOP  LDA TOTAL / ADD 80,X / STA TOTAL / INX / LDA COUNT / SUB ONE / STA COUNT / BRZ DONE / BRA LOOP / DONE LDA TOTAL / OUT / HLT.","Check the X register in the panel steps 0, 1, 2 as it runs."],
+  pre:{80:5,81:7,82:9}, tests:[{inputs:[],expect:[21],pre:{80:5,81:7,82:9}},{inputs:[],expect:[60],pre:{80:10,81:20,82:30}},{inputs:[],expect:[3],pre:{80:1,81:1,82:1}}], need:[{re:/,\s*X/i,msg:"Use indexed addressing: something,X"},{re:/\bINX\b/i,msg:"Use INX to move along the list"}]},
+ {id:"indirect", kind:"lmc", title:"Elden Ring", sub:"indirect addressing: ( )", door:"Door 6",
+  story:"The game keeps one table of pointers: which boss is active, where its health is stored. The health bar code never knows the address itself; it reads the pointer, then reads where it points. Change the pointer and the same code shows a different boss. That is indirect addressing, and it is how every pointer in every language works underneath.",
+  src:"how pointer tables work in game engines",
+  learn:[["Indirect: the operand is the address of the address","LDA (70) reads cell 70, finds a number such as 85, and loads the contents of cell 85.","      LDA (PTR)   // follows the pointer\nPTR   DAT 85"],["STA (p) writes through the pointer","STA (PTR) stores ACC into the cell that PTR points at.",""]],
+  starter:"// Door 6: the boss pointer\n// cell 70 holds the address of the active boss's health\n// subtract the hit, store it back, output the new health\n      INP\n      STA HIT\n\n\n\n      OUT\n      HLT\nHIT   DAT\n",
+  task:"Cell 70 holds the address of the active boss's health (for example 85), and that cell holds the health (for example 100). Input the damage of one hit, subtract it from the health through the pointer, store the new health back through the pointer, and output it. With cell 70 = 85, cell 85 = 100 and input 30, output 70.",
+  hints:["LDA (70) loads the health. SUB HIT. STA (70) writes it back. OUT.","INP, STA HIT, LDA (70), SUB HIT, STA (70), OUT, HLT.","Direct LDA 70 would give you 85, the address, not the health."],
+  tests:[{inputs:[30],expect:[70],pre:{70:85,85:100},after:{85:70}},{inputs:[5],expect:[45],pre:{70:92,92:50},after:{92:45}}], need:[{re:/\(\s*\w+\s*\)/,msg:"Use indirect addressing: (address)"},{re:/STA\s*\(/i,msg:"Store back through the pointer with STA ( )"}]},
+ {id:"class", kind:"oop", title:"Among Us", sub:"a class with private attributes", door:"Door 7",
+  story:"Ten crewmates, one ship, two impostors. Every crewmate on screen is an object made from one class: a name, a colour, a flag for whether they are still alive. The flag is private; the vote screen asks a method, it never touches the flag itself.",
+  src:"Innersloth, Among Us",
+  learn:[["The shape of a class","class, attributes with private, the constructor new, methods, endclass.","class Crewmate\n    private name\n    private colour\n    public procedure new(n, c)\n        name = n\n        colour = c\n    endprocedure\n    public function getName()\n        return name\n    endfunction\nendclass"],["Why private","Outside the class, c.name is an error. Only the class's own methods reach it. The exam marks the word private.",""]],
+  starter:"// Door 7: the Crewmate class\nclass Crewmate\n    private name\n    private colour\n    public procedure new(n, c)\n        name = n\n        colour = c\n    endprocedure\n\n\n\nendclass\n",
+  harness:'c = new Crewmate("Red", "red")\nprint(c.getName())\nprint(c.getColour())\nprint(c.describe())',
+  task:"Complete the Crewmate class: add getName() and getColour() (both return the attribute), and describe(), which returns the name, a space, the word \"is\", a space, and the colour (for Red and red: \"Red is red\"). Keep both attributes private.",
+  hints:["A getter: public function getName() / return name / endfunction.","describe() builds a string: return name + \" is \" + colour.","All three are public functions. Make sure each has endfunction."],
+  expect:["Red","red","Red is red"], need:[{re:/private\s+name/i,msg:"name must stay private"},{re:/public\s+function\s+describe/i,msg:"describe must be a public function"}]},
+ {id:"setter", kind:"oop", title:"Fortnite storm", sub:"get and set with validation", door:"Door 8",
+  story:"Every player object has a health attribute. The storm takes health off it each tick; a medkit puts it back. If health could be set to 200 or minus 40 by any code that fancied it, the game would be unplayable. So the attribute is private and the only way in is a setter that checks.",
+  src:"Epic Games, Fortnite",
+  learn:[["A setter with validation","The set method takes the new value, checks it, and only then stores it.","public procedure setHealth(h)\n    if h >= 0 AND h <= 100 then\n        health = h\n    endif\nendprocedure"],["Change by a method","damage(d) is a method that changes the attribute from inside the class: health = health - d, but never below 0.",""]],
+  starter:"// Door 8: the Player class\nclass Player\n    private name\n    private health\n    public procedure new(n)\n        name = n\n        health = 100\n    endprocedure\n    public function getHealth()\n        return health\n    endfunction\n\n\n\nendclass\n",
+  harness:'p = new Player("Jonesy")\np.setHealth(50)\nprint(p.getHealth())\np.setHealth(150)\nprint(p.getHealth())\np.damage(70)\nprint(p.getHealth())\np.setHealth(-5)\nprint(p.getHealth())',
+  task:"Add setHealth(h), which stores h only if h is between 0 and 100 inclusive, and damage(d), which subtracts d from health but never lets health go below 0. The harness expects 50, 50, 0, 0.",
+  hints:["setHealth: if h >= 0 AND h <= 100 then health = h endif.","damage: health = health - d, then if health < 0 then health = 0 endif.","Both are public procedures (they return nothing)."],
+  expect:["50","50","0","0"], need:[{re:/public\s+procedure\s+setHealth/i,msg:"setHealth must be a public procedure"},{re:/AND/i,msg:"Validate both ends of the range with AND"}]},
+ {id:"inherit", kind:"oop", title:"Minecraft mobs", sub:"inherits and super.new", door:"Door 9",
+  story:"A zombie and a creeper share almost everything: a position, health, a name. The creeper adds one thing: a fuse. Nobody writes the shared code twice. Creeper inherits Mob, and its constructor calls the parent's constructor before setting the fuse.",
+  src:"Mojang, Minecraft",
+  learn:[["inherits","class Creeper inherits Mob: Creeper has every attribute and method of Mob, plus its own.",""],["super.new","The subclass constructor must run the parent constructor first, with the parent's arguments, or the inherited attributes stay empty.","public procedure new(n, h, f)\n    super.new(n, h)\n    fuse = f\nendprocedure"]],
+  starter:"// Door 9: Mob and Creeper\nclass Mob\n    private name\n    private health\n    public procedure new(n, h)\n        name = n\n        health = h\n    endprocedure\n    public function getName()\n        return name\n    endfunction\n    public function getHealth()\n        return health\n    endfunction\nendclass\n\n// write Creeper here\n",
+  harness:'c = new Creeper("Creeper", 20, 3)\nprint(c.getName())\nprint(c.getHealth())\nprint(c.getFuse())',
+  task:"Write a class Creeper that inherits Mob, adds a private attribute fuse, has a constructor new(n, h, f) that calls super.new(n, h) and sets fuse, and a getter getFuse(). The harness expects Creeper, 20, 3.",
+  hints:["First line: class Creeper inherits Mob.","Constructor: super.new(n, h) then fuse = f.","getFuse is a public function returning fuse."],
+  expect:["Creeper","20","3"], need:[{re:/class\s+Creeper\s+inherits\s+Mob/i,msg:"Creeper must inherit Mob"},{re:/super\.new/i,msg:"Call super.new in the constructor"},{re:/private\s+fuse/i,msg:"fuse must be private"}]},
+ {id:"poly", kind:"oop", title:"Overwatch", sub:"overriding: polymorphism", door:"Door 10",
+  story:"Every hero has ultimate(). The game loop does not know which hero you are; it calls hero.ultimate() and the right thing happens. Same call, different behaviour, decided by the object's class. That is polymorphism, and in code it is a subclass overriding a method.",
+  src:"Blizzard, Overwatch",
+  learn:[["Overriding","The subclass defines a method with the same name as the parent's. Calls on a subclass object run the subclass version.",""],["Why it matters","A list of Hero objects can all be told ultimate() without an if for each type.",""]],
+  starter:"// Door 10: Hero, Tank, Healer\nclass Hero\n    private name\n    public procedure new(n)\n        name = n\n    endprocedure\n    public function getName()\n        return name\n    endfunction\n    public function ultimate()\n        return name + \" does something\"\n    endfunction\nendclass\n\n// Tank: ultimate returns name + \" charges\"\n// Healer: ultimate returns name + \" heals everyone\"\n",
+  harness:'t = new Tank("Reinhardt")\nh = new Healer("Mercy")\nprint(t.ultimate())\nprint(h.ultimate())\nprint(t.getName())',
+  task:"Write Tank and Healer, both inheriting Hero, each overriding ultimate(): Tank returns the name followed by \" charges\", Healer returns the name followed by \" heals everyone\". They need no attributes and no constructor of their own. The harness expects \"Reinhardt charges\", \"Mercy heals everyone\", \"Reinhardt\".",
+  hints:["class Tank inherits Hero, then the one method, then endclass.","Inside the method, name is available because it is inherited: return name + \" charges\".","No constructor needed: new Tank(\"Reinhardt\") uses Hero's constructor."],
+  expect:["Reinhardt charges","Mercy heals everyone","Reinhardt"], need:[{re:/class\s+Tank\s+inherits\s+Hero/i,msg:"Tank must inherit Hero"},{re:/class\s+Healer\s+inherits\s+Hero/i,msg:"Healer must inherit Hero"}]},
+ {id:"vault", kind:"oop", title:"The vault door", sub:"a class from scratch", door:"The Vault",
+  story:"The last door. Behind it, the 2024 CrowdStrike outage was fixed by one thing: a rollout that goes to a few machines first, then more, only while nothing fails. Build the class that would have done it.",
+  src:"CrowdStrike's post-incident review promised staged (canary) rollouts",
+  learn:[["Design first","Attributes: name, deployed (how many machines so far), failed (a flag). Methods: constructor, deploy(n), fail(), getDeployed(), status().",""]],
+  starter:"// The Vault: write the whole Rollout class\n",
+  harness:'r = new Rollout("Update 291")\nr.deploy(10)\nr.deploy(100)\nprint(r.getDeployed())\nprint(r.status())\nr.fail()\nr.deploy(1000)\nprint(r.getDeployed())\nprint(r.status())',
+  task:"Write a class Rollout with private attributes name, deployed (starts at 0) and failed (starts at False). Constructor new(n) sets the name. deploy(n) adds n to deployed, but only if failed is False. fail() sets failed to True. getDeployed() returns deployed. status() returns the name + \": halted\" if failed, otherwise the name + \": rolling out\". The harness expects 110, \"Update 291: rolling out\", 110, \"Update 291: halted\".",
+  hints:["Three private attributes, then new(n): name = n, deployed = 0, failed = False.","deploy(n): if failed == False then deployed = deployed + n endif.","status(): if failed then return name + \": halted\" else return name + \": rolling out\" endif."],
+  expect:["110","Update 291: rolling out","110","Update 291: halted"], need:[{re:/class\s+Rollout/i,msg:"The class must be called Rollout"},{re:/private\s+deployed/i,msg:"deployed must be private"},{re:/private\s+failed/i,msg:"failed must be private"}]},
+];
+
+// ============================================================ state and UI
+let S={done:{},code:{},cur:0,hints:{},name:""};
+try{const k=localStorage.getItem("vault-v1"); if(k) Object.assign(S,JSON.parse(k));}catch(e){}
+function save(){try{localStorage.setItem("vault-v1",JSON.stringify(S));}catch(e){}}
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*0x01000193)>>>0}return h.toString(16).padStart(8,"0")}
+function unlocked(i){ return i===0 || ROOMS.slice(0,i).every(r=>S.done[r.id]) || !!S.done[ROOMS[i].id]; }
+function renderList(){
+  const ul=$("rlist"); ul.innerHTML="";
+  ROOMS.forEach((r,i)=>{ if(i===0) ul.insertAdjacentHTML("beforeend",'<li class="sec">wing A · LMC</li>'); if(i===6) ul.insertAdjacentHTML("beforeend",'<li class="sec">wing B · classes</li>');
+    const li=document.createElement("li"); li.className=(i===S.cur?"cur ":"")+(S.done[r.id]?"done ":"")+(unlocked(i)?"":"locked"); li.innerHTML=`<span class="n">${i+1}</span><span>${esc(r.title)}</span>`; li.onclick=()=>{ if(unlocked(i)) load(i); else flash("That door is still locked. Finish the one before it."); }; ul.appendChild(li); });
+  const n=Object.keys(S.done).length; $("progress").textContent=`${n} of ${ROOMS.length} doors open`;
+  // map
+  const svg=$("map"); let h='<text class="title" x="12" y="18">wing A · LMC</text><text class="title" x="500" y="18">wing B · classes</text>';
+  const pos=i=> i<6 ? [40+i*75, 70] : [520+(i-6)*72, 70];
+  for(let i=0;i<ROOMS.length-1;i++){ const [x1,y1]=pos(i), [x2,y2]=pos(i+1); h+=`<line class="hall${S.done[ROOMS[i].id]?" lit":""}" x1="${x1+25}" y1="${y1+30}" x2="${x2+25}" y2="${y2+30}"/>`; }
+  ROOMS.forEach((r,i)=>{ const [x,y]=pos(i); const d=!!S.done[r.id]; const cls=(i===ROOMS.length-1?"vault":"door")+(d?" done":"")+(i===S.cur?" cur":"");
+    h+=`<g onclick="go(${i})"><rect class="${cls}" x="${x}" y="${y}" width="50" height="60" rx="${i===ROOMS.length-1?25:4}"/><text class="lbl" x="${x+25}" y="${y+78}">${esc(r.door)}</text><text class="lbl" x="${x+25}" y="${y+35}" style="fill:${d?"#5af78e":"#39506e"};font-size:14px">${d?"●":"○"}</text></g>`; });
+  svg.innerHTML=h;
+}
+function go(i){ if(unlocked(i)) { view("rooms"); load(i);} else flash("Locked."); }
+function flash(m){ $("matchline").innerHTML=`<span class="err">${esc(m)}</span>`; }
+function load(i){
+  S.cur=i; save(); const r=ROOMS[i]; renderList();
+  $("r-eyebrow").textContent=`${r.door} · ${r.sub}` + (S.done[r.id]?" · open":"");
+  $("r-title").textContent=r.title; $("r-story").innerHTML=esc(r.story)+`<span class="src">${esc(r.src)}</span>`;
+  $("r-learn").innerHTML=r.learn.map(c=>`<div class="learn"><b>${esc(c[0])}</b><div>${esc(c[1])}</div>${c[2]?`<pre>${esc(c[2])}</pre>`:""}</div>`).join("");
+  $("r-task").textContent=r.task; $("ed").value=S.code[r.id]||r.starter; $("out").textContent=""; $("checks").innerHTML=""; $("matchline").textContent="Run, then Check.";
+  $("lmcpane").classList.toggle("hidden",r.kind!=="lmc"); $("oopane").classList.toggle("hidden",r.kind!=="oop");
+  if(r.kind==="lmc"){ VM=null; drawMem(null); } else { $("harness").textContent=r.harness; $("objs").textContent="(run your code)"; }
+}
+// ---------- LMC UI
+let VM=null;
+function drawMem(vm){ const m=$("mem"); let h=""; for(let i=0;i<100;i++){ const c=vm?vm.mem[i]:null; const cls=(vm&&vm.pc===i&&!vm.halted?"pc ":"")+(vm&&vm.hit===i?"hit ":"")+(c&&(c.op!=="DAT"||c.val!==0)?"has":""); h+=`<div class="${cls}"><i>${i}</i>${c?esc(c.op==="DAT"?String(c.val):c.src):""}</div>`; } m.innerHTML=h;
+  $("r-pc").textContent=vm?vm.pc:0; $("r-acc").textContent=vm?vm.acc:0; $("r-x").textContent=vm?vm.x:0; $("r-steps").textContent=vm?vm.steps:0; $("r-in").textContent=vm?vm.inputs.join(", "):""; $("r-out").textContent=vm?vm.outputs.join(", "):""; }
+function prepVM(inputs,pre){ const r=ROOMS[S.cur]; const prog=assemble($("ed").value); const vm=newVM(prog,inputs); const p=pre||r.pre||{}; Object.keys(p).forEach(k=>vm.mem[+k]={op:"DAT",val:p[k],src:`DAT ${p[k]}`}); return vm; }
+function askInputs(){ const r=ROOMS[S.cur]; const t=r.tests[0]; return t.inputs; }
+function stepOnce(){ try{ if(!VM||VM.halted){ VM=prepVM(askInputs()); } step(VM); drawMem(VM); if(VM.err) $("out").innerHTML=`<span class="err">${esc(VM.err)}</span>`; else if(VM.halted) $("out").innerHTML=`<span class="ok">halted. output: ${VM.outputs.join(", ")||"(none)"}</span>`; }catch(e){ $("out").innerHTML=`<span class="err">${esc(e.message)}</span>`; } }
+let timer=null;
+function animate(){ clearInterval(timer); try{ VM=prepVM(askInputs()); }catch(e){ $("out").innerHTML=`<span class="err">${esc(e.message)}</span>`; return; } drawMem(VM); timer=setInterval(()=>{ step(VM); drawMem(VM); if(VM.halted){ clearInterval(timer); $("out").innerHTML=VM.err?`<span class="err">${esc(VM.err)}</span>`:`<span class="ok">halted after ${VM.steps} steps. output: ${VM.outputs.join(", ")||"(none)"}</span>`; } }, 1000/(+$("spd").value)); }
+// ---------- run and check
+function runCode(){ clearInterval(timer); const r=ROOMS[S.cur]; const code=$("ed").value; S.code[r.id]=code; save(); const o=$("out");
+  if(r.kind==="lmc"){ try{ VM=prepVM(askInputs()); while(!VM.halted) step(VM); drawMem(VM); o.innerHTML=`<span class="in">inputs: ${askInputs().join(", ")||"(none)"}</span>\noutput: ${VM.outputs.join(", ")||"(none)"}`+(VM.err?`\n<span class="err">${esc(VM.err)}</span>`:`\n<span class="ok">[ halted after ${VM.steps} steps ]</span>`); return !VM.err; }catch(e){ o.innerHTML=`<span class="err">${esc(e.message)}</span>`; return false; } }
+  else { try{ const res=runERL(code, r.harness); o.innerHTML=res.out.map(esc).join("\n")+'\n<span class="ok">[ finished ]</span>'; $("objs").textContent=res.objs.map(ob=>`${ob.cls.name} { ${Object.entries(ob.attrs).map(([k,v])=>k+" = "+JSON.stringify(v)).join(", ")} }`).join("\n")||"(no objects were made)"; return res; }catch(e){ o.innerHTML=`<span class="err">${esc(e.message)}</span>`; return false; } } }
+function checkRoom(){ const r=ROOMS[S.cur]; const code=$("ed").value; const res=[]; const ok=runCode();
+  if(!ok){ $("matchline").innerHTML='<span class="err">Fix the error first.</span>'; return; }
+  r.need.forEach(n=>res.push({name:n.msg, ok:n.re.test(code)}));
+  if(r.kind==="lmc"){ r.tests.forEach(t=>{ let pass=false, got="error"; try{ const vm=prepVM(t.inputs,t.pre); while(!vm.halted) step(vm); got=vm.err?("error: "+vm.err):vm.outputs.join(", "); pass=!vm.err && JSON.stringify(vm.outputs)===JSON.stringify(t.expect); if(pass&&t.after) pass=Object.keys(t.after).every(k=>vm.mem[+k].val===t.after[k]); }catch(e){ got=e.message; }
+      res.push({name:`inputs ${t.inputs.join(", ")||"(none)"}${t.pre?" with memory "+Object.entries(t.pre).map(([k,v])=>k+"="+v).join(" "):""} → expected ${t.expect.join(", ")||"(nothing)"}`, ok:pass, got}); }); }
+  else { const got=ok.out; r.expect.forEach((e,i)=>res.push({name:`harness line ${i+1}: expected "${e}"`, ok:got[i]===e, got:got[i]===undefined?"(nothing)":got[i]})); }
+  $("checks").innerHTML=res.map(x=>`<li class="${x.ok?"pass":"fail"}">${x.ok?"✓":"✗"} ${esc(x.name)}${x.ok||x.got===undefined?"":" · got "+esc(x.got)}</li>`).join("");
+  if(res.every(x=>x.ok)){ S.done[r.id]=true; save(); renderList(); const last=S.cur===ROOMS.length-1;
+    $("matchline").innerHTML=`<span class="ok">${esc(r.door)} opens.</span> `+(last?`<button class="ghost" onclick="view('me')">take your key →</button>`:`<button class="ghost" onclick="load(${S.cur+1})">next door →</button>`); $("r-eyebrow").textContent=`${r.door} · ${r.sub} · open`; }
+  else $("matchline").innerHTML='<span class="err">Not yet. The red lines say what is missing.</span>';
+}
+function hint(){ const r=ROOMS[S.cur]; const k=S.hints[r.id]||0; S.hints[r.id]=k+1; save(); $("out").innerHTML+=`<span class="hint">hint ${Math.min(k+1,r.hints.length)}/${r.hints.length}: ${esc(r.hints[Math.min(k,r.hints.length-1)])}\n</span>`; $("out").scrollTop=$("out").scrollHeight; }
+function resetCode(){ const r=ROOMS[S.cur]; $("ed").value=r.starter; delete S.code[r.id]; save(); }
+function view(v){ ["rooms","ref","me","board"].forEach(x=>{$(x+"-view").classList.toggle("hidden",x!==v); const b=$("nb-"+x); if(b) b.classList.toggle("on",x===v)}); if(v==="me") renderMe(); }
+function renderMe(){ const n=Object.keys(S.done).length; const nm=(S.name||"").replace(/[^A-Za-z' -]/g,"").trim();
+  let h=`<p>${n} of ${ROOMS.length} doors open.</p><p>Name: <input id="nm" type="text" maxlength="20" value="${esc(nm)}" placeholder="first name" style="font:inherit;background:#070a10;color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px 10px"> <button class="ghost" onclick="S.name=document.getElementById('nm').value;save();renderMe()">save name</button></p>`;
+  h+='<ul style="list-style:none;padding:0">'+ROOMS.map(r=>`<li style="color:${S.done[r.id]?"var(--green)":"var(--dim)"}">${S.done[r.id]?"■":"□"} ${esc(r.door)}: ${esc(r.title)}</li>`).join("")+"</ul>";
+  if(n>0){ const key=(nm||"anon").toLowerCase().replace(/[^a-z]/g,"").slice(0,10)||"anon"; const bits=ROOMS.map(r=>S.done[r.id]?"1":"0").join(""); const hints=ROOMS.reduce((a,r)=>a+(S.hints[r.id]||0),0); h+=`<p>Your key, for Dr Athinaiou's Class Notes:</p><div class="code">VLT1.${key}.${bits}.${hints}.${fnv("vault-"+key+"-"+bits+"-"+hints)}</div>`; }
+  h+='<p class="lab">Saved on this computer only.</p>'; $("me-body").innerHTML=h; }
+function decode(){ const rows=$("keys").value.split("\n").map(s=>s.trim()).filter(Boolean).map(k=>{ const m=k.match(/^VLT1\.([a-z]+)\.([01]{11})\.(\d+)\.([0-9a-f]{8})$/); if(!m) return `<tr><td>${esc(k)}</td><td colspan="4" style="color:var(--red)">not a key</td></tr>`; const ok=fnv("vault-"+m[1]+"-"+m[2]+"-"+m[3])===m[4]; const n=m[2].split("").filter(c=>c==="1").length; return `<tr><td>${esc(m[1])}</td><td>${n}/11</td><td>${m[2].split("").map((c,i)=>`<span style="color:${c==="1"?"var(--green)":"var(--dim)"}">${i+1}</span>`).join(" ")}</td><td>${m[3]} hints</td><td style="color:${ok?"var(--green)":"var(--red)"}">${ok?"valid":"TAMPERED"}</td></tr>`; });
+  $("board").innerHTML=`<table class="b"><tr><th>name</th><th>doors</th><th>which</th><th>hints</th><th>key</th></tr>${rows.join("")}</table>`; }
+function keys(ta, run){ ta.addEventListener("keydown", e=>{ if(e.key==="Tab"){e.preventDefault();const s=ta.selectionStart,en=ta.selectionEnd;ta.value=ta.value.slice(0,s)+"    "+ta.value.slice(en);ta.selectionStart=ta.selectionEnd=s+4} if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();run()} }); }
+keys($("ed"), runCode);
+if(location.hash==="#board"){ view("board"); } else { renderList(); load(S.cur||0); }
+window.addEventListener("hashchange",()=>{ if(location.hash==="#board") view("board"); });
+</script>
+</body>
+</html>
